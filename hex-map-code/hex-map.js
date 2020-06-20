@@ -107,11 +107,12 @@ function exportData() {
 function setup()
 {
   var canvasDiv = document.getElementById('sketchdiv');
+  var pageBounds = document.querySelector('html')
   var hexagon_size = opts.tile_size;
-  var width = opts.use_canvas_size ? canvasDiv.parentElement.offsetWidth : int((opts.width - 1) * hexagon_size * 1.5);
-  var height = opts.use_canvas_size ?  canvasDiv.parentElement.offsetHeight : int((opts.height - 1) * 2 * (hex_height * hexagon_size));
-  var map_height = opts.use_canvas_size ? 2 + int(height / (hexagon_size * hex_height)) : opts.height;
-  var map_width =  opts.use_canvas_size ? 2 + int(width / (hexagon_size)) : opts.width;
+  var width = opts.use_canvas_size ? pageBounds.offsetWidth : int((opts.width - 1) * hexagon_size * 1.5);
+  var height = opts.use_canvas_size ?  pageBounds.offsetHeight : int((opts.height - 1) * 2 * (hex_height * hexagon_size));
+  var map_height = 2 + int(height / (hexagon_size * 2* hex_height));
+  var map_width = 1 + int(width / (hexagon_size * 1.5));
 
   pixelDensity(2);
   
@@ -130,11 +131,12 @@ function setup()
       my+= x%2 * hexagon_size * hex_height;
       
       // Calculate initial noise value
-      let noiseVal = noise((mx / opts.noise_mod)*opts.noise_scale, (my / opts.noise_mod)*opts.noise_scale);
+      let noiseScalar = opts.noise_scale * hexagon_size;
+      let noiseVal = noise((x / opts.noise_mod)*noiseScalar, (y / opts.noise_mod)*noiseScalar);
 
       // Adjust for distance if desired
-      let dist = sqrt(pow((mx - width/2), 2) + pow((my - height/2), 2));
-      let grad = dist / (opts.island_size * min(width, height));
+      let dist = sqrt(pow((x - map_width/2), 2) + pow(y - (map_height/2), 2));
+      let grad = dist / (opts.island_size * min(map_width, map_height));
       noiseVal -= pow(grad, 3);
       noiseVal = max(noiseVal, 0);
 
@@ -144,7 +146,7 @@ function setup()
       // Determine biome
       if (d.v < opts.height_darkwater) {
         d.b = 'dark_water';
-      } else if(d.v < opts.height_water) {
+      } else if(d.v < opts.height_lightwater) {
         d.b = 'light_water';
       } else if (d.v < opts.height_sand) {
         d.b = 'sand';
