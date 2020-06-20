@@ -32,8 +32,11 @@ const opts = {
   
   // Additional Functions
   randomize: () => randomize(),
-  save: () => save()
+  save: () => save(),
+  export: () => exportData()
 };
+
+var mapData = [];
 
 window.onload = function() {
   var gui = new dat.GUI({width:300});
@@ -75,6 +78,10 @@ window.onload = function() {
   gui.add(opts, "randomize").name("Randomize");
   gui.add(opts, "save").name("Save");
 
+  var exports = gui.addFolder('Export Options');
+  exports.open();
+  exports.add(opts, "export").name("Export JSON");
+
  
 };
 
@@ -85,6 +92,10 @@ function randomize() {
 
 function save() {
   save('photo.png');
+}
+
+function exportData() {
+	console.log(saveJSON(mapData, "map.json"));
 }
 
 function setup()
@@ -102,77 +113,63 @@ function setup()
   strokeWeight(1);
   stroke(0);
   
-  draw_hexagon(30, 30, 30, 3);
+  draw_hexagon(30, 30, {v: 3, b: 'dark_water'}, 30);
   
   var hexagon_size = opts.tile_size
   
-  // var map_height = 8
-  // var map_width = 7
-  var map_height = int(1.5 * height / (.86 * hexagon_size))
-  var map_width =  int(1.5 * width / (hexagon_size * 3))
+  var map_height = int(1.5 * height / (.86 * hexagon_size));
+  var map_width =  int(1.5 * width / (hexagon_size * 3));
   
   var hex_map = []
-  for(i = 0; i < map_height ; i++) { 
-    hex_map.push([])
-  }
-  
-  var y = 0
-  var x = 0
 
-  for (i = 0; i < map_height; i++) {
-    y = i * (.86 * hexagon_size)
-    for (j = 0; j < map_width; j++) {
-      if (i%2 == 0) {
-        x = j * (hexagon_size * 3)
-      } else {
-        x = (hexagon_size * 1.5) + j * (hexagon_size * 3)
-      }
+  for (var y = 0; y < map_height; y++) {
+    for (var x = 0; x < map_width; x++) {
+      let mx = x * hexagon_size * 3;
+      mx += y%2 * hexagon_size * 1.5;
+      let my = y * (.86 * hexagon_size);
       
       // Calculate initial noise value
-      let noiseVal = noise((x / opts.noise_mod)*opts.noise_scale, (y / opts.noise_mod)*opts.noise_scale);
-      
+      let noiseVal = noise((mx / opts.noise_mod)*opts.noise_scale, (my / opts.noise_mod)*opts.noise_scale);
       
       // Adjust for distance if desired
-      let dist = sqrt(pow((x - width/2), 2) + pow((y - height/2), 2))
-      let grad = dist / (opts.island_size * min(width, height))
+      let dist = sqrt(pow((mx - width/2), 2) + pow((my - height/2), 2));
+      let grad = dist / (opts.island_size * min(width, height));
+      noiseVal -= pow(grad, 3);
+      noiseVal = max(noiseVal, 0);
+
+      // init datum
+      let d = {x: x, y: y, v: noiseVal};
+
+      // Determine biome
+      if (d.v < opts.dark_water_height) {
+        d.b = 'dark_water';
+      } else if(d.v < opts.light_water_height) {
+        d.b = 'light_water';
+      } else if (d.v < opts.sand_height) {
+        d.b = 'sand';
+      } else if (d.v < opts.grass_height) {
+        d.b = 'grass';
+      } else if (d.v < opts.forest_height) {
+        d.b = 'forest';
+      } else if (d.v < opts.rocks_height) {
+        d.b = 'rocks';
+      } else {
+        d.b = 'snow';
+      }
       
-      noiseVal -= pow(grad, 3)
-      noiseVal = max(noiseVal, 0)
-      
-      hex_map[i].push([x, y, noiseVal])
+      draw_hexagon(mx, my, d);
+      hex_map.push(d);
     }
   }
-  
-  for (r = 0; r < hex_map.length; r++) {
-    for (c = 0; c < hex_map[r].length; c++) {
-      var t = hex_map[r][c]
-      draw_hexagon(t[0], t[1], hexagon_size, t[2], 0)
-    }
-  }
-  
+  mapData = hex_map;
 }
 
 
-function draw_hexagon(x, y, side, n, h) {
-    let v = int(n * 255.0)
-    let c;
-    if (v < opts.dark_water_height * 255) {
-      c = opts.dark_water;
-    } else if(v < opts.light_water_height * 255) {
-      c = opts.light_water;
-    } else if (v < opts.sand_height * 255) {
-      c = opts.sand;
-    } else if (v < opts.grass_height * 255) {
-      c = opts.grass
-    } else if (v < opts.forest_height * 255) {
-      c = opts.forest;
-    } else if (v < opts.rocks_height * 255) {
-      c = opts.rocks;
-    } else {
-      c = opts.snow;
-    }
-  
-    fill(c)
+function draw_hexagon(mx, my, d) {
+    let v = int(d.v * 255.0);
+    let side = opts.tile_size;
+
+    fill(opts[d.b])
     
     strokeWeight(opts.outline_width);
     if (opts.outline) {
@@ -182,12 +179,12 @@ function draw_hexagon(x, y, side, n, h) {
     }
     
     beginShape()
-    vertex(x + side * sin(PI/2), y + side * cos(PI/2) - h)
-    vertex(x + side * sin(PI/6), y + side * cos(PI/6) - h)
-    vertex(x + side * sin(11 * PI/6), y + side * cos(11 * PI/6) - h)
-    vertex(x + side * sin(3 * PI/2), y + side * cos(3 * PI/2) - h)
-    vertex(x + side * sin(7 * PI/6), y + side * cos(7 * PI/6) - h)
-    vertex(x + side * sin(5 * PI/6), y + side * cos(5 * PI/6) - h)
+    vertex(mx + side * sin(PI/2), my + side * cos(PI/2))
+    vertex(mx + side * sin(PI/6), my + side * cos(PI/6))
+    vertex(mx + side * sin(11 * PI/6), my + side * cos(11 * PI/6))
+    vertex(mx + side * sin(3 * PI/2), my + side * cos(3 * PI/2))
+    vertex(mx + side * sin(7 * PI/6), my + side * cos(7 * PI/6))
+    vertex(mx + side * sin(5 * PI/6), my + side * cos(5 * PI/6))
     endShape(CLOSE)
   
 }
