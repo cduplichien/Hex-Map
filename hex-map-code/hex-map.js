@@ -139,7 +139,7 @@ function setup()
       noiseVal = max(noiseVal, 0);
 
       // init datum
-      let d = {v: noiseVal};
+      let d = {v: noiseVal.toFixed(2)};
 
       // Determine biome
       for (i = biomeData.length - 1; i >= 0; --i) {
