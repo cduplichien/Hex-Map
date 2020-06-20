@@ -1,6 +1,7 @@
 p5.disableFriendlyErrors = true;
 
 const hex_height = 0.86;
+const biomes = ['snow','rocks','forest','grass','sand','lightwater','darkwater'];
 
 const opts = {
   // Generation Details
@@ -11,18 +12,18 @@ const opts = {
   outline: true,
   outline_width: 1,
   noise_mod: 1,
-  noise_scale: .01,
+  noise_scale: .009,
   noise_max: 120,
-  island_size: .62,
+  island_size: .55,
   
   // Initial Colors
-  dark_water: [120, 120, 225], // RGB array
-  light_water: [150, 150, 255],
-  sand: [237, 201, 175],
-  grass: [207, 241, 135],
-  forest: [167, 201, 135],
-  rocks: [170, 170, 170],
-  snow: [255, 255, 255],
+  color_darkwater: [120, 120, 225], // RGB array
+  color_lightwater: [150, 150, 255],
+  color_sand: [237, 201, 175],
+  color_grass: [207, 241, 135],
+  color_forest: [167, 201, 135],
+  color_rocks: [170, 170, 170],
+  color_snow: [255, 255, 255],
   outline_color: '#918585',
   
   // Initial Height Ranges
@@ -62,13 +63,13 @@ window.onload = function() {
   
   var colors = gui.addFolder('Biome Colors');
   colors.open()
-  colors.addColor(opts, 'snow').onChange(setup)
-  colors.addColor(opts, 'rocks').onChange(setup)
-  colors.addColor(opts, 'forest').onChange(setup)
-  colors.addColor(opts, 'grass').onChange(setup)
-  colors.addColor(opts, 'sand').onChange(setup)
-  colors.addColor(opts, 'light_water').onChange(setup)
-  colors.addColor(opts, 'dark_water').onChange(setup)
+  colors.addColor(opts, 'color_snow').name("snow").onChange(setup)
+  colors.addColor(opts, 'color_rocks').name("rocks").onChange(setup)
+  colors.addColor(opts, 'color_forest').name("forest").onChange(setup)
+  colors.addColor(opts, 'color_grass').name("grass").onChange(setup)
+  colors.addColor(opts, 'color_sand').name("sand").onChange(setup)
+  colors.addColor(opts, 'color_lightwater').name("light water").onChange(setup)
+  colors.addColor(opts, 'color_darkwater').name("dark water").onChange(setup)
  
 
   var heights = gui.addFolder('Height Ranges');
@@ -87,8 +88,6 @@ window.onload = function() {
   var exports = gui.addFolder('Export Options');
   exports.open();
   exports.add(opts, "export").name("Export JSON");
-
- 
 };
 
 function randomize() {
@@ -101,7 +100,7 @@ function save() {
 }
 
 function exportData() {
-	console.log(saveJSON(mapData, "map.json"));
+	console.log(saveJSON(mapData, "map.json", true));
 }
 
 function setup()
@@ -113,6 +112,7 @@ function setup()
   var height = opts.use_canvas_size ?  pageBounds.offsetHeight : int((opts.height - 1) * 2 * (hex_height * hexagon_size));
   var map_height = 2 + int(height / (hexagon_size * 2* hex_height));
   var map_width = 1 + int(width / (hexagon_size * 1.5));
+  var biomeData = biomes.map(b => {return {name: b, height: opts['height_'+b], color: opts['color_'+b]};});
 
   pixelDensity(2);
   
@@ -122,13 +122,11 @@ function setup()
   background(255)
   strokeWeight(1);
   stroke(0);
-  var newMapData = {w: map_width, h: map_height, m: []};
+  var newMapData = {width: map_width, height: map_height, biomes: biomeData, map: []};
 
   for (var x = 0; x < map_width; x++) {
+    newMapData.map.push([]);
     for (var y = 0; y < map_height; y++) {
-      let mx = x * hexagon_size * 1.5;
-      let my = y * 2 * hexagon_size * hex_height;
-      my+= x%2 * hexagon_size * hex_height;
       
       // Calculate initial noise value
       let noiseScalar = opts.noise_scale * hexagon_size;
@@ -141,44 +139,40 @@ function setup()
       noiseVal = max(noiseVal, 0);
 
       // init datum
-      let d = {x: x, y: y, v: noiseVal};
+      let d = {v: noiseVal};
 
       // Determine biome
-      if (d.v < opts.height_darkwater) {
-        d.b = 'dark_water';
-      } else if(d.v < opts.height_lightwater) {
-        d.b = 'light_water';
-      } else if (d.v < opts.height_sand) {
-        d.b = 'sand';
-      } else if (d.v < opts.height_grass) {
-        d.b = 'grass';
-      } else if (d.v < opts.height_forest) {
-        d.b = 'forest';
-      } else if (d.v < opts.height_rocks) {
-        d.b = 'rocks';
-      } else {
-        d.b = 'snow';
+      for (i = biomeData.length - 1; i >= 0; --i) {
+        if (d.v < biomeData[i].height) {
+          d.b = i;
+          break;
+        }
       }
-      
-      draw_hexagon(mx, my, d);
-      newMapData.m.push(d);
+      newMapData.map[x].push(d);
+
+      let mx = x * hexagon_size * 1.5;
+      let my = y * 2 * hexagon_size * hex_height;
+      my+= x%2 * hexagon_size * hex_height;
+      draw_hexagon(mx, my, d, newMapData);
     }
   }
   mapData = newMapData;
 }
 
 
-function draw_hexagon(mx, my, d) {
+function draw_hexagon(mx, my, d, mapData) {
+
     let v = int(d.v * 255.0);
     let side = opts.tile_size;
 
-    fill(opts[d.b])
+    let biomeColor = mapData.biomes[d.b].color;
+    fill(biomeColor)
     
     strokeWeight(opts.outline_width);
     if (opts.outline) {
       stroke(opts.outline_color);
     } else {
-      stroke(opts[d.b]);
+      stroke(biomeColor);
     }
     
     beginShape()
