@@ -1,5 +1,7 @@
 p5.disableFriendlyErrors = true;
 
+const hex_height = 0.86;
+
 const opts = {
   // Generation Details
   tile_size: 10,
@@ -106,10 +108,10 @@ function setup()
 {
   var canvasDiv = document.getElementById('sketchdiv');
   var hexagon_size = opts.tile_size;
-  var width = opts.use_canvas_size ? canvasDiv.offsetWidth : int(opts.width * hexagon_size * 3);
-  var height = opts.use_canvas_size ?  canvasDiv.offsetHeight : int(opts.height * (.86 * hexagon_size));
-  var map_height = opts.use_canvas_size ? 2 + int(height / (hexagon_size*.86)) : opts.height;
-  var map_width =  opts.use_canvas_size ? 2 + int(width / (hexagon_size*3)) : opts.width;
+  var width = opts.use_canvas_size ? canvasDiv.parentElement.offsetWidth : int((opts.width - 1) * hexagon_size * 1.5);
+  var height = opts.use_canvas_size ?  canvasDiv.parentElement.offsetHeight : int((opts.height - 1) * 2 * (hex_height * hexagon_size));
+  var map_height = opts.use_canvas_size ? 2 + int(height / (hexagon_size * hex_height)) : opts.height;
+  var map_width =  opts.use_canvas_size ? 2 + int(width / (hexagon_size)) : opts.width;
 
   pixelDensity(2);
   
@@ -121,11 +123,11 @@ function setup()
   stroke(0);
   var newMapData = {w: map_width, h: map_height, m: []};
 
-  for (var y = 0; y < map_height; y++) {
-    for (var x = 0; x < map_width; x++) {
-      let mx = x * hexagon_size * 3;
-      mx += y%2 * hexagon_size * 1.5;
-      let my = y * (.86 * hexagon_size);
+  for (var x = 0; x < map_width; x++) {
+    for (var y = 0; y < map_height; y++) {
+      let mx = x * hexagon_size * 1.5;
+      let my = y * 2 * hexagon_size * hex_height;
+      my+= x%2 * hexagon_size * hex_height;
       
       // Calculate initial noise value
       let noiseVal = noise((mx / opts.noise_mod)*opts.noise_scale, (my / opts.noise_mod)*opts.noise_scale);
